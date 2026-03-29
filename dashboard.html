@@ -193,7 +193,7 @@ const STATUS_LABEL = {active:"● 進行中",hold:"● 保留中",pending:"● �
 const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",hold:"color:#f0a020;border-color:rgba(240,160,32,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toAppUrl(url){ return String(url).replace('https://claude.ai/chat/', 'claude://chat/'); }
+function toAppUrl(url){ return String(url).replace('https://claude.ai/chat/', 'claude://chat//'); }
 
 function fmtDate(iso){
   if(!iso) return "";
