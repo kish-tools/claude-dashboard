@@ -15,6 +15,17 @@ LOG_FILE="$INSTALL_DIR/autoloop.log"
 MAX_ITERS="${1:-20}"
 PYTHON=$(which python3)
 
+# claude コマンドのパスを解決（launchd等でPATHが通らない場合の対策）
+CLAUDE=$(which claude 2>/dev/null)
+if [ -z "$CLAUDE" ]; then
+  for candidate in "$HOME/.local/bin/claude" "/usr/local/bin/claude" "/opt/homebrew/bin/claude"; do
+    [ -x "$candidate" ] && CLAUDE="$candidate" && break
+  done
+fi
+if [ -z "$CLAUDE" ]; then
+  echo "ERROR: claude コマンドが見つかりません" && exit 1
+fi
+
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
     echo "$msg"
@@ -76,7 +87,7 @@ $CURRENT_EXPERIMENT
 出力形式: \`\`\`python から始まり \`\`\` で終わるコードブロックのみ（説明文不要）"
 
     log "Asking Claude to improve experiment.py..."
-    AGENT_RESPONSE=$(echo "$AGENT_PROMPT" | claude --print --output-format text 2>/dev/null || echo "")
+    AGENT_RESPONSE=$(echo "$AGENT_PROMPT" | "$CLAUDE" --print --output-format text 2>/dev/null || echo "")
 
     if [ -z "$AGENT_RESPONSE" ]; then
         log "ERROR: Empty response from Claude. Skipping."

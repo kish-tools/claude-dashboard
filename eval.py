@@ -38,9 +38,25 @@ EXPECTED_GROUPS = {
 }
 
 
+def find_claude() -> str:
+    import shutil
+    found = shutil.which("claude")
+    if found:
+        return found
+    for p in ["~/.local/bin/claude", "/usr/local/bin/claude", "/opt/homebrew/bin/claude"]:
+        fp = Path(p).expanduser()
+        if fp.exists():
+            return str(fp)
+    raise RuntimeError("claude コマンドが見つかりません")
+
+_CLAUDE_BIN = None
+
 def run_claude(prompt: str) -> str:
+    global _CLAUDE_BIN
+    if _CLAUDE_BIN is None:
+        _CLAUDE_BIN = find_claude()
     result = subprocess.run(
-        ["claude", "--print", "--output-format", "text"],
+        [_CLAUDE_BIN, "--print", "--output-format", "text"],
         input=prompt, capture_output=True, text=True, timeout=120,
     )
     if result.returncode != 0:

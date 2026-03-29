@@ -14,14 +14,43 @@ PROJECTS_JSON = Path.home() / "claude_dashboard/claude_projects.json"
 INSTALL_DIR  = Path.home() / "claude_dashboard"
 
 
+def find_claude() -> str:
+    """claude CLIのパスを返す。見つからなければエラー。"""
+    # 1. PATH上にあればそれを使う
+    import shutil
+    found = shutil.which("claude")
+    if found:
+        return found
+    # 2. よくあるインストール先を探す
+    candidates = [
+        Path.home() / ".local/bin/claude",
+        Path("/usr/local/bin/claude"),
+        Path("/opt/homebrew/bin/claude"),
+        Path("/usr/bin/claude"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    raise RuntimeError(
+        "claude コマンドが見つかりません。\n"
+        "Claude Code がインストールされているか確認してください。\n"
+        "インストール済みの場合は 'which claude' でパスを確認し、\n"
+        "~/.zshrc または ~/.bash_profile に export PATH を追記してください。"
+    )
+
+CLAUDE_BIN = None
+
 def run_claude(prompt: str) -> str:
     """claude CLIでプロンプトを実行してレスポンスを返す。"""
+    global CLAUDE_BIN
+    if CLAUDE_BIN is None:
+        CLAUDE_BIN = find_claude()
     result = subprocess.run(
-        ["claude", "--print", "--output-format", "text"],
+        [CLAUDE_BIN, "--print", "--output-format", "text"],
         input=prompt,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=300,
     )
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI error: {result.stderr[:200]}")
@@ -35,8 +64,17 @@ def build_chat_list(chats: list) -> str:
         summary = c.get("summary", "").replace("\\n", " ").strip()
         summary_short = summary[:150] if summary else ""
         date = (c.get("updated_at") or "")[:10]
+        src = c.get("source", "claude-ai")
+        if src == "claude-code":
+            cwd = c.get("cwd", "")
+            cwd_short = "/".join(cwd.split("/")[-2:]) if cwd else ""
+            src_label = f"[Code:{cwd_short}]" if cwd_short else "[Code]"
+        elif src == "claude-cowork":
+            src_label = "[Cowork]"
+        else:
+            src_label = "[Chat]"
         lines.append(
-            f'- [{date}] [{c["id"]}] {c["title"]}'
+            f'- [{date}] [{c["id"]}] {src_label} {c["title"]}'
             + (f'\n  要約: {summary_short}' if summary_short else "")
         )
     return "\n".join(lines)
@@ -84,10 +122,12 @@ def main():
         print("チャットデータが空です。")
         sys.exit(1)
 
-    print(f"[分析中] {len(chats)}件のチャットを分析しています...")
+    # 最近のチャットのみ分析（updated_at降順 上位100件）
+    recent = sorted(chats, key=lambda c: c.get("updated_at",""), reverse=True)[:80]
+    print(f"[分析中] {len(chats)}件中 直近{len(recent)}件を分析しています...")
 
     try:
-        result = analyze(chats)
+        result = analyze(recent)
     except Exception as e:
         print(f"ERROR: {e}")
         sys.exit(1)
