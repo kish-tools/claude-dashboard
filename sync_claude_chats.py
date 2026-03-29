@@ -2,15 +2,18 @@
 """
 Claude Dashboard - Chat Sync Script
 Extracts chat IDs and titles from Claude desktop app's LevelDB storage.
+Claude Code sessions (~/.claude/projects/) also synced.
 """
 import re, json, struct, shutil, tempfile
 from datetime import datetime
 from pathlib import Path
 
-LEVELDB_PATH = Path.home() / "Library/Application Support/Claude/Local Storage/leveldb"
-OUTPUT_JSON  = Path.home() / "claude_dashboard/claude_chats.json"
+LEVELDB_PATH    = Path.home() / "Library/Application Support/Claude/Local Storage/leveldb"
+OUTPUT_JSON     = Path.home() / "claude_dashboard/claude_chats.json"
+CLAUDE_CODE_DIR = Path.home() / ".claude/projects"
 
-UUID_RE = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+UUID_RE      = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+UUID_RE_FULL = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 
 
 # ── LevelDB log record parser ────────────────────────────────────────────────
@@ -145,15 +148,23 @@ def _extract_from_rqc_value(val: bytes, title_map: dict):
         r'[^}]{0,100}"updated_at":"([^"]+)"'
     )
 
+    # cowork セッションを検出: URL に /cowork/ が含まれるか判定
+    cowork_uids = set()
+    cowork_re = re.compile(r'claude\.ai/cowork/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
+    for m2 in cowork_re.finditer(val_str):
+        cowork_uids.add(m2.group(1))
+
     for m in conv_re.finditer(val_str):
         uid, name, summary, model, created_at, updated_at = m.groups()
         if uid not in title_map and len(name) >= 1:
+            source = "claude-cowork" if uid in cowork_uids else "claude-ai"
             title_map[uid] = {
                 "title": name,
                 "summary": summary,
                 "model": model,
                 "created_at": created_at,
                 "updated_at": updated_at,
+                "source": source,
             }
 
 
@@ -181,6 +192,93 @@ def _extract_from_ldb_raw(data: bytes, title_map: dict):
                     title_map[uid] = name
         except Exception:
             pass
+
+
+def _extract_code_title(content: str) -> str | None:
+    """Claude Codeメッセージから表示用タイトルを生成する。"""
+    if not content:
+        return None
+    # 内部コマンドはスキップ
+    if content.startswith(('<local-command-caveat>', '<command-message>', '<parameter name="file_path">')):
+        return None
+    first_line = content.split('\n')[0].strip()
+    first_line = re.sub(r'^#+\s*', '', first_line)      # マークダウン見出し除去
+    if first_line.startswith('@'):                        # @ファイル参照 → ファイル名だけ
+        fname = first_line.split('/')[-1].split(' ')[0].lstrip('@')
+        rest = first_line[len(first_line.split(' ')[0]):].strip()
+        first_line = f"{fname} {rest}" if rest else fname
+    return (first_line[:77] + "…") if len(first_line) > 80 else first_line or content[:60]
+
+
+def sync_claude_code(existing_ids: set) -> list:
+    """~/.claude/projects/ から Claude Code セッションを読み込む。"""
+    if not CLAUDE_CODE_DIR.exists():
+        return []
+
+    sessions = []
+    for proj_dir in CLAUDE_CODE_DIR.iterdir():
+        if not proj_dir.is_dir():
+            continue
+        for jsonl_file in sorted(proj_dir.glob("*.jsonl")):
+            sid = jsonl_file.stem
+            if not UUID_RE_FULL.match(sid) or sid in existing_ids:
+                continue
+
+            first_raw = None; cwd = ""; model = "claude-opus-4-6"
+            created_at = updated_at = None; user_count = 0
+
+            try:
+                for line in jsonl_file.read_text(errors='replace').splitlines():
+                    try:
+                        obj = json.loads(line)
+                    except Exception:
+                        continue
+                    ts = obj.get("timestamp", "")
+                    if ts:
+                        if not created_at:
+                            created_at = ts
+                        updated_at = ts
+                    if obj.get("type") == "user" and not obj.get("isSidechain"):
+                        msg = obj.get("message", {})
+                        c = msg.get("content", "")
+                        if isinstance(c, list):
+                            c = " ".join(x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text")
+                        c = c.strip()
+                        if c and first_raw is None:
+                            first_raw = c
+                        if not cwd:
+                            cwd = obj.get("cwd", "")
+                        user_count += 1
+                    if obj.get("type") == "assistant":
+                        m2 = obj.get("message", {})
+                        if isinstance(m2, dict) and m2.get("model"):
+                            model = m2["model"]
+            except Exception:
+                continue
+
+            if not first_raw:
+                continue
+            title = _extract_code_title(first_raw)
+            if not title:
+                continue
+
+            sessions.append({
+                "id":            sid,
+                "url":           f"claude://claude.ai/chat/{sid}",
+                "title":         title,
+                "summary":       "",
+                "model":         model,
+                "created_at":    created_at or datetime.now().isoformat(),
+                "updated_at":    updated_at or datetime.now().isoformat(),
+                "source":        "claude-code",
+                "cwd":           cwd,
+                "message_count": user_count,
+                "status":        "todo",
+                "note":          "",
+                "tags":          [],
+            })
+
+    return sessions
 
 
 def sync():
@@ -213,23 +311,42 @@ def sync():
             chat["created_at"] = meta["created_at"]
             chat["updated_at"] = meta["updated_at"]
 
-    # 新規チャットを追加
+    # 新規チャットを追加（claude.ai / claude-cowork）
     for uid in uuid_set:
         if uid not in existing:
             meta = title_map[uid]
+            src = meta.get("source", "claude-ai")
+            url = f"https://claude.ai/cowork/{uid}" if src == "claude-cowork" else f"https://claude.ai/chat/{uid}"
             data["chats"].append({
                 "id":         uid,
-                "url":        f"https://claude.ai/chat/{uid}",
+                "url":        url,
                 "title":      meta["title"],
                 "summary":    meta["summary"],
                 "model":      meta["model"],
                 "created_at": meta["created_at"],
                 "updated_at": meta["updated_at"],
+                "source":     src,
                 "status":     "todo",
                 "note":       "",
                 "tags":       [],
             })
             added += 1
+
+    # 既存チャットに source が無ければ付与、cowork URL なら上書き
+    for chat in data["chats"]:
+        if "source" not in chat:
+            if "/cowork/" in chat.get("url", ""):
+                chat["source"] = "claude-cowork"
+            elif chat.get("cwd"):
+                chat["source"] = "claude-code"
+            else:
+                chat["source"] = "claude-ai"
+
+    # Claude Code セッションを追加
+    existing_ids = {c["id"] for c in data["chats"]}
+    code_sessions = sync_claude_code(existing_ids)
+    data["chats"].extend(code_sessions)
+    added += len(code_sessions)
 
     data["last_updated"] = datetime.now().isoformat()
     data["total"]        = len(data["chats"])
@@ -238,8 +355,12 @@ def sync():
     OUTPUT_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2))
 
     titled = sum(1 for c in data["chats"] if c["title"] != "（タイトル未確認）")
+    ai_count     = sum(1 for c in data["chats"] if c.get("source") == "claude-ai")
+    cowork_count = sum(1 for c in data["chats"] if c.get("source") == "claude-cowork")
+    code_count   = sum(1 for c in data["chats"] if c.get("source") == "claude-code")
     print(f"[OK] {datetime.now().strftime('%H:%M:%S')} "
-          f"総数:{len(data['chats'])}件 新規:{added}件 タイトル取得:{titled}件")
+          f"総数:{len(data['chats'])}件 (Chat:{ai_count} Cowork:{cowork_count} Code:{code_count}) "
+          f"新規:{added}件 タイトル取得:{titled}件")
 
 
 sync()

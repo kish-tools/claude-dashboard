@@ -121,6 +121,14 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 .status-badge{font-size:10px;border-radius:20px;padding:2px 9px;font-weight:600;border:1px solid;white-space:nowrap}
 .open-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text2);text-decoration:none;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:all .15s}
 .open-btn:hover{color:#fff;border-color:var(--accent);background:rgba(79,121,255,.15)}
+.src-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;letter-spacing:.04em;flex-shrink:0}
+.src-badge.ai{background:rgba(59,107,250,.12);color:var(--accent);border:1px solid rgba(59,107,250,.25)}
+.src-badge.cowork{background:rgba(108,59,232,.12);color:var(--accent2);border:1px solid rgba(108,59,232,.3)}
+.src-badge.code{background:rgba(240,160,32,.12);color:#d08800;border:1px solid rgba(240,160,32,.3)}
+.chat-cwd{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src-bar{display:flex;gap:5px;margin-bottom:10px}
+.src-btn{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:3px 11px;font-size:11px;color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .15s}
+.src-btn:hover,.src-btn.active{background:var(--bg4);border-color:var(--border2);color:var(--text)}
 
 /* Tab switcher */
 .tab-bar{display:flex;gap:0;margin-bottom:20px;background:var(--bg3);border-radius:10px;padding:3px}
@@ -145,7 +153,7 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
     <div class="logo-icon">🧠</div>
     <div class="logo-text">
       <h1>Claude Dashboard</h1>
-      <p>claude.ai chat tracker</p>
+      <p>claude.ai + claude code tracker</p>
     </div>
   </div>
   <div class="header-right">
@@ -173,6 +181,12 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 
 <!-- All chats view -->
 <div id="tab-chats" style="display:none">
+  <div class="src-bar">
+    <button class="src-btn active" onclick="setSrc('all',this)">🔀 すべて</button>
+    <button class="src-btn" onclick="setSrc('claude-ai',this)">💬 Chat</button>
+    <button class="src-btn" onclick="setSrc('claude-cowork',this)">🤝 Cowork</button>
+    <button class="src-btn" onclick="setSrc('claude-code',this)">⌨️ Code</button>
+  </div>
   <div class="filter-bar">
     <button class="filter-btn active" onclick="setFilter('all',this)">すべて</button>
     <button class="filter-btn" onclick="setFilter('active',this)">● 進行中</button>
@@ -192,13 +206,14 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 let chats = [];
 let projects = [];
 let currentFilter = "all";
+let currentSrc = "all";
 
 // ── helpers ──────────────────────────────────────────────────────────────
 const STATUS_LABEL = {active:"● 進行中",hold:"● 保留中",pending:"● 保留中",todo:"未確認/TODO",done:"● 完了"};
 const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",hold:"color:#f0a020;border-color:rgba(240,160,32,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toAppUrl(url){ return String(url).replace('https://claude.ai/chat/', 'claude://claude.ai/chat/'); }
+function toAppUrl(url){ const s = String(url); return s.startsWith('claude://') ? s : s.replace('https://claude.ai/chat/', 'claude://claude.ai/chat/'); }
 
 function fmtDate(iso){
   if(!iso) return "";
@@ -222,12 +237,15 @@ function renderKPI(){
   const active  = projects.filter(p=>p.status==='active').length;
   const hold    = projects.filter(p=>p.status==='hold').length;
   const done    = projects.filter(p=>p.status==='done').length;
+  const aiCount     = chats.filter(c=>c.source==='claude-ai'||!c.source).length;
+  const coworkCount = chats.filter(c=>c.source==='claude-cowork').length;
+  const codeCount   = chats.filter(c=>c.source==='claude-code').length;
   document.getElementById('kpi-row').innerHTML = `
-    <div class="kpi total" onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">チャット総数</div></div>
-    <div class="kpi total" style="cursor:default"><div class="kpi-num">${totalProj}</div><div class="kpi-label">プロジェクト数</div></div>
-    <div class="kpi active" onclick="showTab('chats');setFilter('active',null)" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中</div></div>
-    <div class="kpi pending" onclick="showTab('chats');setFilter('hold',null)" style="cursor:pointer"><div class="kpi-num">${hold}</div><div class="kpi-label">● 保留中</div></div>
-    <div class="kpi done" onclick="showTab('chats');setFilter('done',null)" style="cursor:pointer"><div class="kpi-num">${done}</div><div class="kpi-label">● 完了</div></div>`;
+    <div class="kpi total" onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">総セッション数</div></div>
+    <div class="kpi total" onclick="showTab('chats');setSrc('claude-ai',null)" style="cursor:pointer"><div class="kpi-num">${aiCount}</div><div class="kpi-label">💬 Chat</div></div>
+    <div class="kpi pending" onclick="showTab('chats');setSrc('claude-cowork',null)" style="cursor:pointer"><div class="kpi-num">${coworkCount}</div><div class="kpi-label">🤝 Cowork</div></div>
+    <div class="kpi todo" onclick="showTab('chats');setSrc('claude-code',null)" style="cursor:pointer"><div class="kpi-num">${codeCount}</div><div class="kpi-label">⌨️ Code</div></div>
+    <div class="kpi active" onclick="showTab('chats');setFilter('active',null)" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中PJ</div></div>`;
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────
@@ -247,13 +265,26 @@ function renderProjects(){
   grid.innerHTML = projects.map(p => {
     const projChats = (p.chat_ids||[]).map(id=>chatById[id]).filter(Boolean);
     const topics = (p.topics||[]).map(t=>`<span class="topic-tag">${esc(t)}</span>`).join('');
-    const chatItems = projChats.slice(0,6).map(c=>`
+    const chatItems = projChats.slice(0,8).map(c=>{
+      const s = c.source||'claude-ai';
+      const pill = s==='claude-code'   ? '<span class="src-badge code" style="font-size:8px">Code</span>'
+                 : s==='claude-cowork' ? '<span class="src-badge cowork" style="font-size:8px">Cowork</span>'
+                 :                       '<span class="src-badge ai" style="font-size:8px">Chat</span>';
+      return `
       <div class="proj-chat-item">
-        <div class="proj-chat-dot"></div>
+        ${pill}
         <span class="proj-chat-link" title="${esc(c.title)}">${esc(c.title)}</span>
         <span class="proj-chat-date">${fmtDate(c.updated_at||c.updatedAt)}</span>
         <a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">開く</a>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    // ソース別カウント
+    const srcCounts = projChats.reduce((a,c)=>{const s=c.source||'claude-ai';a[s]=(a[s]||0)+1;return a},{});
+    const srcSummary = [
+      srcCounts['claude-ai']     ? `<span class="src-badge ai" style="font-size:9px">${srcCounts['claude-ai']} Chat</span>`   : '',
+      srcCounts['claude-cowork'] ? `<span class="src-badge cowork" style="font-size:9px">${srcCounts['claude-cowork']} Cowork</span>` : '',
+      srcCounts['claude-code']   ? `<span class="src-badge code" style="font-size:9px">${srcCounts['claude-code']} Code</span>` : '',
+    ].filter(Boolean).join('');
 
     return `
     <div class="proj-card ${esc(p.status||'active')}" onclick="toggleExpand(this)">
@@ -264,7 +295,7 @@ function renderProjects(){
       <div class="proj-desc">${esc(p.description||'')}</div>
       <div class="proj-progress-bar"><div class="proj-progress-fill" style="width:${p.progress||0}%"></div></div>
       <div class="proj-meta">
-        <span class="proj-chat-count">${projChats.length} chats</span>
+        ${srcSummary}
         ${topics}
       </div>
       <div class="proj-next">
@@ -298,6 +329,13 @@ function changeStatus(projId, newStatus, sel){
 }
 
 // ── Chat list ─────────────────────────────────────────────────────────────
+function setSrc(s, btn){
+  currentSrc = s;
+  document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderChats();
+}
+
 function setFilter(f, btn){
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
@@ -309,6 +347,7 @@ function renderChats(){
   const q = (document.getElementById('search-box')?.value||'').trim().toLowerCase();
   let filtered = chats.filter(c=>{
     if(currentFilter!=='all' && c.status!==currentFilter) return false;
+    if(currentSrc!=='all' && (c.source||'claude-ai')!==currentSrc) return false;
     if(q && !c.title.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -322,12 +361,19 @@ function renderChats(){
     const sl = STATUS_LABEL[st]||st;
     const summaryText = (c.summary||'').replace(/\\n/g,' ').replace(/\*\*/g,'').trim();
     const dateStr = fmtDate(c.updated_at || c.updatedAt);
+    const src = c.source || 'claude-ai';
+    const srcBadge = src === 'claude-code'   ? '<span class="src-badge code">⌨️ Code</span>'
+                   : src === 'claude-cowork' ? '<span class="src-badge cowork">🤝 Cowork</span>'
+                   :                           '<span class="src-badge ai">💬 Chat</span>';
+    const cwdShort = src === 'claude-code' && c.cwd ? c.cwd.split('/').slice(-2).join('/') : '';
     return `
     <div class="chat-item ${esc(st)}" style="animation:fadeUp .2s ease both">
       <div>
         <div class="chat-title">${esc(c.title)}</div>
         ${summaryText ? `<div class="chat-summary">${esc(summaryText.slice(0,120))}</div>` : ''}
+        ${cwdShort ? `<div class="chat-cwd">📁 ${esc(cwdShort)}${c.message_count ? ' · '+c.message_count+'msgs' : ''}</div>` : ''}
         <div class="chat-meta">
+          ${srcBadge}
           <span>${dateStr}</span>
           ${c.model ? `<span>${esc(c.model.replace('claude-',''))}</span>` : ''}
         </div>
