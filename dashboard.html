@@ -97,8 +97,8 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 .status-select{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;outline:none}
 .status-select:hover{border-color:var(--border2)}
 
-/* Chat list (task view) */
-.filter-bar{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+/* Chat list (all chats tab) */
+.filter-bar{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
 .filter-btn{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .15s}
 .filter-btn:hover,.filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .search-wrap{position:relative;margin-left:auto}
@@ -107,24 +107,20 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 .search-box:focus{border-color:var(--border2)}
 .search-box::placeholder{color:var(--text3)}
 
-.chat-item{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px 16px 12px;margin-bottom:8px;position:relative;overflow:hidden;transition:border-color .15s,box-shadow .15s}
-.chat-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:14px 0 0 14px}
+.chat-item{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:7px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;transition:border-color .15s,transform .15s;position:relative;overflow:hidden}
+.chat-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
 .chat-item.active::before{background:var(--green)}
-.chat-item.done::before{background:var(--text3);opacity:.5}
+.chat-item.done::before{background:var(--text3)}
 .chat-item.todo::before{background:var(--accent)}
-.chat-item:hover{border-color:var(--border2);box-shadow:0 2px 12px rgba(60,80,200,.07)}
-.chat-item.done{opacity:.7}
-.chat-title{font-size:13px;font-weight:600;color:#1a2540;margin-bottom:3px;line-height:1.4}
+.chat-item.pending::before{background:var(--amber)}
+.chat-item:hover{border-color:var(--border2);transform:translateX(2px)}
+.chat-title{font-size:13px;font-weight:600;color:#1a2540;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-summary{font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
-.chat-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:6px;flex-wrap:wrap}
-.chat-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.chat-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:4px}
+.chat-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
 .status-badge{font-size:10px;border-radius:20px;padding:2px 9px;font-weight:600;border:1px solid;white-space:nowrap}
-.open-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text2);text-decoration:none;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:all .15s;cursor:pointer}
+.open-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text2);text-decoration:none;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:all .15s}
 .open-btn:hover{color:#fff;border-color:var(--accent);background:rgba(79,121,255,.15)}
-.chat-status-sel{font-size:11px;padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;outline:none;transition:border-color .15s}
-.chat-status-sel:hover{border-color:var(--border2)}
-.chat-status-sel.active-sel{color:var(--green);border-color:rgba(15,186,122,.4);background:rgba(15,186,122,.07)}
-.chat-status-sel.done-sel{color:var(--text3);border-color:rgba(154,170,196,.4)}
 .src-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;letter-spacing:.04em;flex-shrink:0}
 .src-badge.ai{background:rgba(59,107,250,.12);color:var(--accent);border:1px solid rgba(59,107,250,.25)}
 .src-badge.cowork{background:rgba(108,59,232,.12);color:var(--accent2);border:1px solid rgba(108,59,232,.3)}
@@ -190,12 +186,18 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 
 <!-- Tab -->
 <div class="tab-bar">
-  <button class="tab-btn active" onclick="showTab('chats')">📋 タスク一覧</button>
-  <button class="tab-btn" onclick="showTab('projects')">📁 プロジェクト</button>
+  <button class="tab-btn active" onclick="showTab('projects')">📁 プロジェクト</button>
+  <button class="tab-btn" onclick="showTab('chats')">💬 全チャット</button>
 </div>
 
-<!-- Task list (default) -->
-<div id="tab-chats">
+<!-- Projects view -->
+<div id="tab-projects">
+  <div class="sec-title">プロジェクト別 — 現在地と進捗</div>
+  <div class="project-grid" id="project-grid"></div>
+</div>
+
+<!-- All chats view -->
+<div id="tab-chats" style="display:none">
   <div class="src-bar">
     <button class="src-btn active" onclick="setSrc('all',this)">🔀 すべて</button>
     <button class="src-btn" onclick="setSrc('claude-ai',this)">💬 Chat</button>
@@ -204,20 +206,15 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
   </div>
   <div class="filter-bar">
     <button class="filter-btn active" onclick="setFilter('all',this)">すべて</button>
-    <button class="filter-btn" onclick="setFilter('todo',this)">未着手</button>
     <button class="filter-btn" onclick="setFilter('active',this)">● 進行中</button>
+    <button class="filter-btn" onclick="setFilter('hold',this)">● 保留中</button>
+    <button class="filter-btn" onclick="setFilter('todo',this)">● 未確認</button>
     <button class="filter-btn" onclick="setFilter('done',this)">● 完了</button>
     <div class="search-wrap">
       <input class="search-box" id="search-box" placeholder="タイトルを検索…" oninput="renderChats()">
     </div>
   </div>
   <div id="chat-list"></div>
-</div>
-
-<!-- Projects view -->
-<div id="tab-projects" style="display:none">
-  <div class="sec-title">プロジェクト別 — AI分析による現在地と進捗</div>
-  <div class="project-grid" id="project-grid"></div>
 </div>
 
 </div><!-- /wrap -->
@@ -242,29 +239,8 @@ let currentFilter = "all";
 let currentSrc = "all";
 
 // ── helpers ──────────────────────────────────────────────────────────────
-const STATUS_LABEL = {active:"● 進行中", todo:"未着手", done:"● 完了"};
-const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)", todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)", done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
-
-// ── localStorage status overrides ────────────────────────────────────────
-const LS_KEY = 'claude_dash_status_v1';
-function getOverrides(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); }catch{ return {}; } }
-function saveStatus(id, status){
-  const o = getOverrides(); o[id] = status; localStorage.setItem(LS_KEY, JSON.stringify(o));
-}
-function applyOverrides(){
-  const o = getOverrides();
-  chats.forEach(c => { if(o[c.id]) c.status = o[c.id]; });
-}
-function setChatStatus(id, status, selEl){
-  saveStatus(id, status);
-  const c = chats.find(c=>c.id===id);
-  if(c) c.status = status;
-  // セレクトのスタイルを更新
-  if(selEl){
-    selEl.className = 'chat-status-sel' + (status==='active' ? ' active-sel' : status==='done' ? ' done-sel' : '');
-  }
-  renderKPI();
-}
+const STATUS_LABEL = {active:"● 進行中",hold:"● 保留中",pending:"● 保留中",todo:"未確認/TODO",done:"● 完了"};
+const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",hold:"color:#f0a020;border-color:rgba(240,160,32,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toAppUrl(url){ const s = String(url); return s.startsWith('claude://') ? s : s.replace('https://claude.ai/chat/', 'claude://claude.ai/chat/'); }
@@ -340,27 +316,29 @@ function fmtDate(iso){
 
 // ── Tab ───────────────────────────────────────────────────────────────────
 function showTab(tab){
-  document.getElementById('tab-chats').style.display    = tab==='chats'    ? '' : 'none';
-  document.getElementById('tab-projects').style.display = tab==='projects' ? '' : 'none';
+  document.getElementById('tab-projects').style.display = tab==='projects'?'':'none';
+  document.getElementById('tab-chats').style.display    = tab==='chats'?'':'none';
   document.querySelectorAll('.tab-btn').forEach((b,i)=>{
-    b.classList.toggle('active', (i===0&&tab==='chats')||(i===1&&tab==='projects'));
+    b.classList.toggle('active', (i===0&&tab==='projects')||(i===1&&tab==='chats'));
   });
 }
 
 // ── KPI ───────────────────────────────────────────────────────────────────
 function renderKPI(){
-  const total  = chats.length;
-  const todo   = chats.filter(c=>!c.status||c.status==='todo'||c.status==='hold'||c.status==='pending').length;
-  const active = chats.filter(c=>c.status==='active').length;
-  const done   = chats.filter(c=>c.status==='done').length;
-  const cowork = chats.filter(c=>c.source==='claude-cowork').length;
-  const code   = chats.filter(c=>c.source==='claude-code').length;
+  const totalChats = chats.length;
+  const totalProj  = projects.length;
+  const active  = projects.filter(p=>p.status==='active').length;
+  const hold    = projects.filter(p=>p.status==='hold').length;
+  const done    = projects.filter(p=>p.status==='done').length;
+  const aiCount     = chats.filter(c=>c.source==='claude-ai'||!c.source).length;
+  const coworkCount = chats.filter(c=>c.source==='claude-cowork').length;
+  const codeCount   = chats.filter(c=>c.source==='claude-code').length;
   document.getElementById('kpi-row').innerHTML = `
-    <div class="kpi total"   onclick="setFilter('all',document.querySelector('.filter-btn'));showTab('chats')" style="cursor:pointer"><div class="kpi-num">${total}</div><div class="kpi-label">総セッション数</div></div>
-    <div class="kpi todo"    onclick="setFilter('todo',null);showTab('chats')"   style="cursor:pointer"><div class="kpi-num">${todo}</div><div class="kpi-label">未着手</div></div>
-    <div class="kpi active"  onclick="setFilter('active',null);showTab('chats')" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中</div></div>
-    <div class="kpi done"    onclick="setFilter('done',null);showTab('chats')"   style="cursor:pointer"><div class="kpi-num">${done}</div><div class="kpi-label">● 完了</div></div>
-    <div class="kpi pending" onclick="setSrc('claude-cowork',null);showTab('chats')" style="cursor:pointer"><div class="kpi-num">${cowork}</div><div class="kpi-label">🤝 Cowork</div></div>`;
+    <div class="kpi total" onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">総セッション数</div></div>
+    <div class="kpi total" onclick="showTab('chats');setSrc('claude-ai',null)" style="cursor:pointer"><div class="kpi-num">${aiCount}</div><div class="kpi-label">💬 Chat</div></div>
+    <div class="kpi pending" onclick="showTab('chats');setSrc('claude-cowork',null)" style="cursor:pointer"><div class="kpi-num">${coworkCount}</div><div class="kpi-label">🤝 Cowork</div></div>
+    <div class="kpi todo" onclick="showTab('chats');setSrc('claude-code',null)" style="cursor:pointer"><div class="kpi-num">${codeCount}</div><div class="kpi-label">⌨️ Code</div></div>
+    <div class="kpi active" onclick="showTab('chats');setFilter('active',null)" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中PJ</div></div>`;
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────
@@ -448,7 +426,6 @@ function setSrc(s, btn){
   currentSrc = s;
   document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  else document.querySelector('.src-btn')?.classList.add('active');
   renderChats();
 }
 
@@ -456,59 +433,46 @@ function setFilter(f, btn){
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  else document.querySelectorAll('.filter-btn').forEach(b=>{ if(b.textContent.includes('すべて')) b.classList.add('active'); });
   renderChats();
 }
-
-function normalizeStatus(s){ return (!s||s==='hold'||s==='pending') ? 'todo' : s; }
 
 function renderChats(){
   const q = (document.getElementById('search-box')?.value||'').trim().toLowerCase();
   let filtered = chats.filter(c=>{
-    const st = normalizeStatus(c.status);
-    if(currentFilter!=='all' && st!==currentFilter) return false;
+    if(currentFilter!=='all' && c.status!==currentFilter) return false;
     if(currentSrc!=='all' && (c.source||'claude-ai')!==currentSrc) return false;
-    if(q && !c.title.toLowerCase().includes(q) && !(c.summary||'').toLowerCase().includes(q)) return false;
+    if(q && !c.title.toLowerCase().includes(q)) return false;
     return true;
-  });
-  // 未着手→進行中→完了の順、同一ステータス内は更新日降順
-  const order = {active:0, todo:1, done:2};
-  filtered.sort((a,b)=>{
-    const oa = order[normalizeStatus(a.status)]??1, ob = order[normalizeStatus(b.status)]??1;
-    if(oa!==ob) return oa-ob;
-    return (b.updated_at||'') > (a.updated_at||'') ? 1 : -1;
   });
 
   const list = document.getElementById('chat-list');
   if(!filtered.length){ list.innerHTML='<div class="empty">該当するチャットがありません</div>'; return; }
 
   list.innerHTML = filtered.map(c=>{
-    const st = normalizeStatus(c.status);
+    const st = c.status||'todo';
+    const sc = STATUS_COLOR[st]||'';
+    const sl = STATUS_LABEL[st]||st;
     const summaryText = (c.summary||'').replace(/\\n/g,' ').replace(/\*\*/g,'').trim();
-    const dateStr = fmtDate(c.updated_at||c.updatedAt);
-    const src = c.source||'claude-ai';
-    const srcBadge = src==='claude-code'   ? '<span class="src-badge code">⌨️ Code</span>'
-                   : src==='claude-cowork' ? '<span class="src-badge cowork">🤝 Cowork</span>'
-                   :                         '<span class="src-badge ai">💬 Chat</span>';
-    const cwdShort = (src==='claude-code'||src==='claude-cowork') && c.cwd
-      ? c.cwd.split('/').slice(-2).join('/') : '';
-    const selCls = 'chat-status-sel'+(st==='active'?' active-sel':st==='done'?' done-sel':'');
+    const dateStr = fmtDate(c.updated_at || c.updatedAt);
+    const src = c.source || 'claude-ai';
+    const srcBadge = src === 'claude-code'   ? '<span class="src-badge code">⌨️ Code</span>'
+                   : src === 'claude-cowork' ? '<span class="src-badge cowork">🤝 Cowork</span>'
+                   :                           '<span class="src-badge ai">💬 Chat</span>';
+    const cwdShort = src === 'claude-code' && c.cwd ? c.cwd.split('/').slice(-2).join('/') : '';
     return `
-    <div class="chat-item ${st}" style="animation:fadeUp .15s ease both">
-      <div class="chat-title">${esc(c.title)}</div>
-      ${summaryText ? `<div class="chat-summary">${esc(summaryText.slice(0,140))}</div>` : ''}
-      <div class="chat-meta">
-        ${srcBadge}
-        ${cwdShort ? `<span>📁 ${esc(cwdShort)}</span>` : ''}
-        <span>${dateStr}</span>
-        ${c.message_count ? `<span>${c.message_count}msgs</span>` : ''}
+    <div class="chat-item ${esc(st)}" style="animation:fadeUp .2s ease both">
+      <div>
+        <div class="chat-title">${esc(c.title)}</div>
+        ${summaryText ? `<div class="chat-summary">${esc(summaryText.slice(0,120))}</div>` : ''}
+        ${cwdShort ? `<div class="chat-cwd">📁 ${esc(cwdShort)}${c.message_count ? ' · '+c.message_count+'msgs' : ''}</div>` : ''}
+        <div class="chat-meta">
+          ${srcBadge}
+          <span>${dateStr}</span>
+          ${c.model ? `<span>${esc(c.model.replace('claude-',''))}</span>` : ''}
+        </div>
       </div>
-      <div class="chat-footer">
-        <select class="${selCls}" onchange="setChatStatus('${c.id}',this.value,this)">
-          <option value="todo"   ${st==='todo'  ?'selected':''}>未着手</option>
-          <option value="active" ${st==='active'?'selected':''}>● 進行中</option>
-          <option value="done"   ${st==='done'  ?'selected':''}>● 完了</option>
-        </select>
+      <div class="chat-right">
+        <span class="status-badge" style="${sc}">${sl}</span>
         ${openBtn(c)}
       </div>
     </div>`;
@@ -533,11 +497,13 @@ async function loadData(){
     if(r2 && r2.ok){
       const p = await r2.json();
       projects = p.projects || [];
+      // チャットのstatusをプロジェクトのstatusから引き継ぐ
+      const projMap = {};
+      projects.forEach(p => p.chat_ids.forEach(id => projMap[id] = p.status));
+      chats.forEach(c => { if(projMap[c.id]) c.status = projMap[c.id]; });
       const ta = p.last_analyzed ? new Date(p.last_analyzed).toLocaleDateString('ja-JP') : "-";
       document.getElementById("sync-info").textContent += "  |  分析: " + ta;
     }
-    // localStorageのステータス上書きを適用（プロジェクト分類より優先）
-    applyOverrides();
     renderKPI();
     renderProjects();
     renderChats();
