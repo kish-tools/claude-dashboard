@@ -3,6 +3,7 @@
 Claude Dashboard - AI Analysis Script
 Uses `claude` CLI to analyze chats and generate project structure.
 No API key required - uses Claude Code's OAuth.
+プロンプトはexperiment.pyから読み込む（autoresearchで自動改善される）。
 """
 import json, subprocess, sys, re
 from datetime import datetime
@@ -10,6 +11,7 @@ from pathlib import Path
 
 CHATS_JSON   = Path.home() / "claude_dashboard/claude_chats.json"
 PROJECTS_JSON = Path.home() / "claude_dashboard/claude_projects.json"
+INSTALL_DIR  = Path.home() / "claude_dashboard"
 
 
 def run_claude(prompt: str) -> str:
@@ -44,36 +46,21 @@ def analyze(chats: list) -> dict:
     """claudeでプロジェクト分析を実行してJSONを返す。"""
     chat_list = build_chat_list(chats)
 
-    prompt = f"""あなたはユーザーのAI/Claude活用状況を分析するアシスタントです。
-以下はClaudeとの会話タイトルと要約の一覧です（最新順）。
+    # experiment.pyのプロンプトを使用（autoresearchで自動改善される）
+    try:
+        import importlib, sys as _sys
+        _sys.path.insert(0, str(INSTALL_DIR))
+        exp = importlib.import_module("experiment")
+        importlib.reload(exp)
+        prompt = exp.get_prompt(chat_list)
+    except Exception:
+        # experiment.pyが無い場合はフォールバック
+        prompt = f"""以下のClaudeとの会話を分析して、プロジェクト別にJSON形式でまとめてください。
 
 {chat_list}
 
-これらを分析して、プロジェクト別にまとめてください。
-
-以下のルールで分析してください：
-- 関連する会話をプロジェクトとしてグルーピングする
-- 1つのチャットが複数プロジェクトに属してもよい
-- 「雑談・調査・その他」は1つのグループにまとめる
-- 各プロジェクトの進捗・ステータス・次のアクションを推定する
-- 日本語で回答する
-
-必ず以下のJSON形式だけで回答してください（説明文は不要）:
-{{
-  "projects": [
-    {{
-      "id": "英数字のslug（例: line-secretary）",
-      "name": "プロジェクト名（20文字以内）",
-      "emoji": "絵文字1文字",
-      "description": "プロジェクトの概要（50文字以内）",
-      "status": "active（進行中）またはhold（保留）またはdone（完了）",
-      "progress": 0から100の数値,
-      "topics": ["主なトピック1", "トピック2"],
-      "next_action": "次にやるべき具体的なアクション（40文字以内）",
-      "chat_ids": ["関連するチャットのuuid"]
-    }}
-  ]
-}}"""
+必ず以下のJSON形式だけで回答してください:
+{{"projects": [{{"id": "slug", "name": "名前", "emoji": "絵文字", "description": "概要", "status": "active", "progress": 50, "topics": [], "next_action": "次のアクション", "chat_ids": []}}]}}"""
 
     raw = run_claude(prompt)
 
