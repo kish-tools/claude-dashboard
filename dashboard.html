@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f4f6fa; --bg2:#ffffff; --bg3:#eef1f7; --bg4:#e8ecf4;
+  --border:rgba(60,80,140,0.10); --border2:rgba(60,80,140,0.22);
+  --text:#1a2540; --text2:#5a6b8a; --text3:#9aaac4;
+  --accent:#3b6bfa; --accent2:#6c3be8;
+  --green:#0fba7a; --amber:#f0a020; --red:#e8405a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(60,80,200,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(60,80,200,0.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 24px 80px}
+
+header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--border);margin-bottom:32px}
+.logo{display:flex;align-items:center;gap:13px}
+.logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 0 24px rgba(79,121,255,.35)}
+.logo-text h1{font-size:17px;font-weight:700;color:#1a2540}
+.logo-text p{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px}
+.header-right{text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+.header-right strong{display:block;color:var(--text2);font-size:13px;margin-bottom:2px}
+#sync-info{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:36px}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:13px;padding:16px 18px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:13px 13px 0 0}
+.kpi.total::after{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.kpi.active::after{background:var(--green)}
+.kpi.pending::after{background:var(--amber)}
+.kpi.todo::after{background:var(--accent)}
+.kpi.done::after{background:var(--text3)}
+.kpi-num{font-size:34px;font-weight:700;letter-spacing:-2px;font-family:'DM Mono',monospace;line-height:1;margin-bottom:4px}
+.kpi.total .kpi-num{color:var(--accent)}
+.kpi.active .kpi-num{color:var(--green)}
+.kpi.pending .kpi-num{color:var(--amber)}
+.kpi.todo .kpi-num{color:var(--accent)}
+.kpi.done .kpi-num{color:var(--text2)}
+.kpi-label{font-size:11px;color:var(--text3);font-weight:500}
+
+/* Section title */
+.sec-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;font-family:'DM Mono',monospace;display:flex;align-items:center;gap:10px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Project grid */
+.project-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:40px}
+.proj-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.proj-card:hover{border-color:var(--border2);box-shadow:0 4px 20px rgba(60,80,200,.08)}
+.proj-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0}
+.proj-card.active::before{background:linear-gradient(90deg,var(--green),#4dffc0)}
+.proj-card.hold::before{background:var(--amber)}
+.proj-card.done::before{background:var(--text3)}
+
+.proj-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.proj-name{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
+.proj-emoji{font-size:20px;line-height:1}
+.proj-progress-pct{font-size:18px;font-weight:700;font-family:'DM Mono',monospace}
+.proj-card.active .proj-progress-pct{color:var(--green)}
+.proj-card.hold .proj-progress-pct{color:var(--amber)}
+.proj-card.done .proj-progress-pct{color:var(--text3)}
+
+.proj-desc{font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.5}
+
+.proj-progress-bar{height:4px;background:var(--bg3);border-radius:4px;margin-bottom:14px;overflow:hidden}
+.proj-progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.proj-card.active .proj-progress-fill{background:linear-gradient(90deg,var(--green),#4dffc0)}
+.proj-card.hold .proj-progress-fill{background:var(--amber)}
+.proj-card.done .proj-progress-fill{background:var(--text3)}
+
+.proj-meta{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.proj-chat-count{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.topic-tag{font-size:10px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text2)}
+
+.proj-next{background:var(--bg3);border-radius:8px;padding:9px 12px;display:flex;align-items:flex-start;gap:7px;font-size:12px}
+.proj-next-label{font-size:10px;font-weight:700;color:var(--accent);white-space:nowrap;margin-top:1px}
+.proj-next-text{color:var(--text);line-height:1.4}
+
+/* Chat list inside project */
+.proj-chats{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;display:none}
+.proj-card.expanded .proj-chats{display:block}
+.proj-chat-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-bottom:1px solid var(--border)}
+.proj-chat-item:last-child{border-bottom:none}
+.proj-chat-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.proj-chat-link{color:var(--text2);text-decoration:none;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-chat-link:hover{color:var(--accent)}
+.proj-chat-date{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0}
+.expand-hint{font-size:10px;color:var(--text3);margin-top:8px;text-align:center}
+
+/* Chat list (all chats tab) */
+.filter-bar{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.filter-btn{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .15s}
+.filter-btn:hover,.filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.search-wrap{position:relative;margin-left:auto}
+.search-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;pointer-events:none}
+.search-box{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 14px 5px 30px;font-size:12px;color:var(--text);font-family:'Noto Sans JP',sans-serif;outline:none;width:200px;transition:border-color .15s}
+.search-box:focus{border-color:var(--border2)}
+.search-box::placeholder{color:var(--text3)}
+
+.chat-item{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:7px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;transition:border-color .15s,transform .15s;position:relative;overflow:hidden}
+.chat-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.chat-item.active::before{background:var(--green)}
+.chat-item.done::before{background:var(--text3)}
+.chat-item.todo::before{background:var(--accent)}
+.chat-item.pending::before{background:var(--amber)}
+.chat-item:hover{border-color:var(--border2);transform:translateX(2px)}
+.chat-title{font-size:13px;font-weight:600;color:#1a2540;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-summary{font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
+.chat-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:4px}
+.chat-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.status-badge{font-size:10px;border-radius:20px;padding:2px 9px;font-weight:600;border:1px solid;white-space:nowrap}
+.open-btn{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--text2);text-decoration:none;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:3px 9px;transition:all .15s}
+.open-btn:hover{color:#fff;border-color:var(--accent);background:rgba(79,121,255,.15)}
+
+/* Tab switcher */
+.tab-bar{display:flex;gap:0;margin-bottom:20px;background:var(--bg3);border-radius:10px;padding:3px}
+.tab-btn{flex:1;padding:7px;font-size:12px;font-weight:600;border-radius:8px;border:none;background:none;cursor:pointer;color:var(--text2);transition:all .15s;font-family:'Noto Sans JP',sans-serif}
+.tab-btn.active{background:var(--bg2);color:var(--accent);box-shadow:0 1px 6px rgba(60,80,200,.12)}
+
+.empty{text-align:center;padding:48px;color:var(--text3)}
+.error-bar{background:#fff0f0;border:1px solid #ffcccc;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#c00;display:none}
+.no-analysis{background:var(--bg3);border:1px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;color:var(--text2);font-size:13px}
+.no-analysis code{font-family:'DM Mono',monospace;background:var(--bg4);padding:2px 6px;border-radius:4px;font-size:12px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:900px){.kpi-row{grid-template-columns:repeat(3,1fr)};.project-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧠</div>
+    <div class="logo-text">
+      <h1>Claude Dashboard</h1>
+      <p>claude.ai chat tracker</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <strong id="today-date"></strong>
+    <span id="sync-info">読み込み中…</span>
+  </div>
+</header>
+
+<div class="error-bar" id="error-bar"></div>
+
+<!-- KPI -->
+<div class="kpi-row" id="kpi-row"></div>
+
+<!-- Tab -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('projects')">📁 プロジェクト</button>
+  <button class="tab-btn" onclick="showTab('chats')">💬 全チャット</button>
+</div>
+
+<!-- Projects view -->
+<div id="tab-projects">
+  <div class="sec-title">プロジェクト別 — 現在地と進捗</div>
+  <div class="project-grid" id="project-grid"></div>
+</div>
+
+<!-- All chats view -->
+<div id="tab-chats" style="display:none">
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('all',this)">すべて</button>
+    <button class="filter-btn" onclick="setFilter('active',this)">● 進行中</button>
+    <button class="filter-btn" onclick="setFilter('pending',this)">● 保留中</button>
+    <button class="filter-btn" onclick="setFilter('todo',this)">● 未確認</button>
+    <button class="filter-btn" onclick="setFilter('done',this)">● 完了</button>
+    <div class="search-wrap">
+      <input class="search-box" id="search-box" placeholder="タイトルを検索…" oninput="renderChats()">
+    </div>
+  </div>
+  <div id="chat-list"></div>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+let chats = [];
+let projects = [];
+let currentFilter = "all";
+
+// ── helpers ──────────────────────────────────────────────────────────────
+const STATUS_LABEL = {active:"● 進行中",pending:"● 保留中",todo:"未確認/TODO",done:"● 完了"};
+const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmtDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? iso.slice(0,10) : `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+// ── Tab ───────────────────────────────────────────────────────────────────
+function showTab(tab){
+  document.getElementById('tab-projects').style.display = tab==='projects'?'':'none';
+  document.getElementById('tab-chats').style.display    = tab==='chats'?'':'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', (i===0&&tab==='projects')||(i===1&&tab==='chats'));
+  });
+}
+
+// ── KPI ───────────────────────────────────────────────────────────────────
+function renderKPI(){
+  const totalChats = chats.length;
+  const totalProj  = projects.length;
+  const active  = projects.filter(p=>p.status==='active').length;
+  const hold    = projects.filter(p=>p.status==='hold').length;
+  const done    = projects.filter(p=>p.status==='done').length;
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi total"><div class="kpi-num">${totalChats}</div><div class="kpi-label">チャット総数</div></div>
+    <div class="kpi total"><div class="kpi-num">${totalProj}</div><div class="kpi-label">プロジェクト数</div></div>
+    <div class="kpi active"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中</div></div>
+    <div class="kpi pending"><div class="kpi-num">${hold}</div><div class="kpi-label">● 保留中</div></div>
+    <div class="kpi done"><div class="kpi-num">${done}</div><div class="kpi-label">● 完了</div></div>`;
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────
+function renderProjects(){
+  const grid = document.getElementById('project-grid');
+  if(!projects.length){
+    grid.innerHTML = `<div class="no-analysis" style="grid-column:1/-1">
+      <p>📊 まだAI分析が実行されていません</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--text3)">ターミナルで以下を実行してください：</p>
+      <p style="margin-top:6px"><code>python3 ~/claude_dashboard/analyze_chats.py</code></p>
+    </div>`;
+    return;
+  }
+
+  const chatById = Object.fromEntries(chats.map(c=>[c.id,c]));
+
+  grid.innerHTML = projects.map(p => {
+    const projChats = (p.chat_ids||[]).map(id=>chatById[id]).filter(Boolean);
+    const topics = (p.topics||[]).map(t=>`<span class="topic-tag">${esc(t)}</span>`).join('');
+    const chatItems = projChats.slice(0,6).map(c=>`
+      <div class="proj-chat-item">
+        <div class="proj-chat-dot"></div>
+        <a class="proj-chat-link" href="${esc(c.url)}" target="_blank" title="${esc(c.title)}">${esc(c.title)}</a>
+        <span class="proj-chat-date">${fmtDate(c.updated_at||c.updatedAt)}</span>
+      </div>`).join('');
+
+    return `
+    <div class="proj-card ${esc(p.status||'active')}" onclick="toggleExpand(this)">
+      <div class="proj-head">
+        <div class="proj-name"><span class="proj-emoji">${esc(p.emoji||'📁')}</span>${esc(p.name)}</div>
+        <div class="proj-progress-pct">${p.progress||0}%</div>
+      </div>
+      <div class="proj-desc">${esc(p.description||'')}</div>
+      <div class="proj-progress-bar"><div class="proj-progress-fill" style="width:${p.progress||0}%"></div></div>
+      <div class="proj-meta">
+        <span class="proj-chat-count">${projChats.length} chats</span>
+        ${topics}
+      </div>
+      <div class="proj-next">
+        <span class="proj-next-label">⚡ 次のアクション</span>
+        <span class="proj-next-text">${esc(p.next_action||'')}</span>
+      </div>
+      <div class="proj-chats">${chatItems}</div>
+      ${projChats.length ? '<div class="expand-hint">クリックでチャット一覧を展開</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleExpand(card){
+  card.classList.toggle('expanded');
+}
+
+// ── Chat list ─────────────────────────────────────────────────────────────
+function setFilter(f, btn){
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderChats();
+}
+
+function renderChats(){
+  const q = (document.getElementById('search-box')?.value||'').trim().toLowerCase();
+  let filtered = chats.filter(c=>{
+    if(currentFilter!=='all' && c.status!==currentFilter) return false;
+    if(q && !c.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const list = document.getElementById('chat-list');
+  if(!filtered.length){ list.innerHTML='<div class="empty">該当するチャットがありません</div>'; return; }
+
+  list.innerHTML = filtered.map(c=>{
+    const st = c.status||'todo';
+    const sc = STATUS_COLOR[st]||'';
+    const sl = STATUS_LABEL[st]||st;
+    const summaryText = (c.summary||'').replace(/\\n/g,' ').replace(/\*\*/g,'').trim();
+    const dateStr = fmtDate(c.updated_at || c.updatedAt);
+    return `
+    <div class="chat-item ${esc(st)}" style="animation:fadeUp .2s ease both">
+      <div>
+        <div class="chat-title">${esc(c.title)}</div>
+        ${summaryText ? `<div class="chat-summary">${esc(summaryText.slice(0,120))}</div>` : ''}
+        <div class="chat-meta">
+          <span>${dateStr}</span>
+          ${c.model ? `<span>${esc(c.model.replace('claude-',''))}</span>` : ''}
+        </div>
+      </div>
+      <div class="chat-right">
+        <span class="status-badge" style="${sc}">${sl}</span>
+        <a class="open-btn" href="${esc(c.url)}" target="_blank">↗ 開く</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────
+async function loadData(){
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch("claude_chats.json?t=" + Date.now()),
+      fetch("claude_projects.json?t=" + Date.now()).catch(()=>null),
+    ]);
+    if(!r1.ok) throw new Error("HTTP " + r1.status);
+    const d = await r1.json();
+    if(d.chats && d.chats.length){
+      chats = d.chats;
+      const t = d.last_updated ? new Date(d.last_updated).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}) : "-";
+      document.getElementById("sync-info").textContent = "最終同期: " + t;
+      document.getElementById("error-bar").style.display = "none";
+    }
+    if(r2 && r2.ok){
+      const p = await r2.json();
+      projects = p.projects || [];
+      const ta = p.last_analyzed ? new Date(p.last_analyzed).toLocaleDateString('ja-JP') : "-";
+      document.getElementById("sync-info").textContent += "  |  分析: " + ta;
+    }
+    renderKPI();
+    renderProjects();
+    renderChats();
+  } catch(e){
+    const bar = document.getElementById("error-bar");
+    bar.style.display = "block";
+    bar.textContent = "データの読み込みに失敗: " + e.message;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+const days = ['日','月','火','水','木','金','土'];
+const now = new Date();
+document.getElementById('today-date').textContent =
+  `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+
+loadData();
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>

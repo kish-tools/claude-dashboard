@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""
+Claude Dashboard - AI Analysis Script
+Uses `claude` CLI to analyze chats and generate project structure.
+No API key required - uses Claude Code's OAuth.
+"""
+import json, subprocess, sys, re
+from datetime import datetime
+from pathlib import Path
+
+CHATS_JSON   = Path.home() / "claude_dashboard/claude_chats.json"
+PROJECTS_JSON = Path.home() / "claude_dashboard/claude_projects.json"
+
+
+def run_claude(prompt: str) -> str:
+    """claude CLIでプロンプトを実行してレスポンスを返す。"""
+    result = subprocess.run(
+        ["claude", "--print", "--output-format", "text"],
+        input=prompt,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI error: {result.stderr[:200]}")
+    return result.stdout.strip()
+
+
+def build_chat_list(chats: list) -> str:
+    """分析用のチャット一覧テキストを作る。"""
+    lines = []
+    for c in chats:
+        summary = c.get("summary", "").replace("\\n", " ").strip()
+        summary_short = summary[:150] if summary else ""
+        date = (c.get("updated_at") or "")[:10]
+        lines.append(
+            f'- [{date}] [{c["id"]}] {c["title"]}'
+            + (f'\n  要約: {summary_short}' if summary_short else "")
+        )
+    return "\n".join(lines)
+
+
+def analyze(chats: list) -> dict:
+    """claudeでプロジェクト分析を実行してJSONを返す。"""
+    chat_list = build_chat_list(chats)
+
+    prompt = f"""あなたはユーザーのAI/Claude活用状況を分析するアシスタントです。
+以下はClaudeとの会話タイトルと要約の一覧です（最新順）。
+
+{chat_list}
+
+これらを分析して、プロジェクト別にまとめてください。
+
+以下のルールで分析してください：
+- 関連する会話をプロジェクトとしてグルーピングする
+- 1つのチャットが複数プロジェクトに属してもよい
+- 「雑談・調査・その他」は1つのグループにまとめる
+- 各プロジェクトの進捗・ステータス・次のアクションを推定する
+- 日本語で回答する
+
+必ず以下のJSON形式だけで回答してください（説明文は不要）:
+{{
+  "projects": [
+    {{
+      "id": "英数字のslug（例: line-secretary）",
+      "name": "プロジェクト名（20文字以内）",
+      "emoji": "絵文字1文字",
+      "description": "プロジェクトの概要（50文字以内）",
+      "status": "active（進行中）またはhold（保留）またはdone（完了）",
+      "progress": 0から100の数値,
+      "topics": ["主なトピック1", "トピック2"],
+      "next_action": "次にやるべき具体的なアクション（40文字以内）",
+      "chat_ids": ["関連するチャットのuuid"]
+    }}
+  ]
+}}"""
+
+    raw = run_claude(prompt)
+
+    # JSON部分を抽出
+    json_match = re.search(r'\{[\s\S]*\}', raw)
+    if not json_match:
+        raise ValueError(f"JSON not found in response: {raw[:200]}")
+
+    return json.loads(json_match.group())
+
+
+def main():
+    if not CHATS_JSON.exists():
+        print("ERROR: claude_chats.json が見つかりません。先に sync_claude_chats.py を実行してください。")
+        sys.exit(1)
+
+    data = json.loads(CHATS_JSON.read_text())
+    chats = data.get("chats", [])
+
+    if not chats:
+        print("チャットデータが空です。")
+        sys.exit(1)
+
+    print(f"[分析中] {len(chats)}件のチャットを分析しています...")
+
+    try:
+        result = analyze(chats)
+    except Exception as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
+
+    projects = result.get("projects", [])
+
+    # chat_id → project_id のマッピングを chats.json にも書き込む
+    chat_project_map = {}
+    for proj in projects:
+        for cid in proj.get("chat_ids", []):
+            chat_project_map[cid] = proj["id"]
+
+    for chat in chats:
+        chat["project_id"] = chat_project_map.get(chat["id"], "other")
+
+    data["last_analyzed"] = datetime.now().isoformat()
+    CHATS_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+
+    # projects.json を保存
+    output = {
+        "last_analyzed": datetime.now().isoformat(),
+        "projects": projects,
+    }
+    PROJECTS_JSON.write_text(json.dumps(output, ensure_ascii=False, indent=2))
+
+    print(f"[完了] {len(projects)}件のプロジェクトを生成しました")
+    for p in projects:
+        print(f"  {p['emoji']} {p['name']} ({p['status']}) {p['progress']}% → {p['next_action']}")
+
+
+main()

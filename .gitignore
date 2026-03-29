@@ -1,0 +1,4 @@
+*.log
+claude_chats.json
+claude_projects.json
+__pycache__/
