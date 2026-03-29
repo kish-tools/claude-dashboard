@@ -333,10 +333,11 @@ function renderKPI(){
   const aiCount     = chats.filter(c=>c.source==='claude-ai'||!c.source).length;
   const codeCount   = chats.filter(c=>c.source==='claude-code').length;
   document.getElementById('kpi-row').innerHTML = `
-    <div class="kpi total" onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">総セッション数</div></div>
-    <div class="kpi total" onclick="showTab('chats');setSrc('claude-ai',null)" style="cursor:pointer"><div class="kpi-num">${aiCount}</div><div class="kpi-label">💬 Chat</div></div>
-    <div class="kpi todo" onclick="showTab('chats');setSrc('claude-code',null)" style="cursor:pointer"><div class="kpi-num">${codeCount}</div><div class="kpi-label">⌨️ Code</div></div>
-    <div class="kpi active" onclick="showTab('chats');setFilter('active',null)" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中PJ</div></div>`;
+    <div class="kpi total"   onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">総セッション数</div></div>
+    <div class="kpi active"  onclick="showTab('projects')" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中PJ</div></div>
+    <div class="kpi pending" onclick="showTab('projects')" style="cursor:pointer"><div class="kpi-num">${hold}</div><div class="kpi-label">● 保留中PJ</div></div>
+    <div class="kpi done"    onclick="showTab('projects')" style="cursor:pointer"><div class="kpi-num">${done}</div><div class="kpi-label">● 完了PJ</div></div>
+    <div class="kpi todo"    onclick="showTab('chats');setSrc('claude-code',null)" style="cursor:pointer"><div class="kpi-num">${codeCount}</div><div class="kpi-label">⌨️ Code</div></div>`;
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────
