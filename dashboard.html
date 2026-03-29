@@ -90,6 +90,8 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 .proj-chat-link{color:var(--text2);text-decoration:none;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .proj-chat-link:hover{color:var(--accent)}
 .proj-chat-date{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0}
+.proj-open-btn{font-size:11px;color:var(--text3);text-decoration:none;padding:1px 6px;border:1px solid var(--border);border-radius:5px;flex-shrink:0;transition:all .15s}
+.proj-open-btn:hover{color:#fff;background:var(--accent);border-color:var(--accent)}
 .expand-hint{font-size:10px;color:var(--text3);margin-top:8px;text-align:center}
 
 /* Chat list (all chats tab) */
@@ -245,8 +247,9 @@ function renderProjects(){
     const chatItems = projChats.slice(0,6).map(c=>`
       <div class="proj-chat-item">
         <div class="proj-chat-dot"></div>
-        <a class="proj-chat-link" href="${esc(toAppUrl(c.url))}" title="${esc(c.title)}">${esc(c.title)}</a>
+        <span class="proj-chat-link" title="${esc(c.title)}">${esc(c.title)}</span>
         <span class="proj-chat-date">${fmtDate(c.updated_at||c.updatedAt)}</span>
+        <a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">↗</a>
       </div>`).join('');
 
     return `
