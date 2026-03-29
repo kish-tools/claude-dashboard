@@ -218,11 +218,11 @@ function renderKPI(){
   const hold    = projects.filter(p=>p.status==='hold').length;
   const done    = projects.filter(p=>p.status==='done').length;
   document.getElementById('kpi-row').innerHTML = `
-    <div class="kpi total"><div class="kpi-num">${totalChats}</div><div class="kpi-label">チャット総数</div></div>
-    <div class="kpi total"><div class="kpi-num">${totalProj}</div><div class="kpi-label">プロジェクト数</div></div>
-    <div class="kpi active"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中</div></div>
-    <div class="kpi pending"><div class="kpi-num">${hold}</div><div class="kpi-label">● 保留中</div></div>
-    <div class="kpi done"><div class="kpi-num">${done}</div><div class="kpi-label">● 完了</div></div>`;
+    <div class="kpi total" onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">チャット総数</div></div>
+    <div class="kpi total" style="cursor:default"><div class="kpi-num">${totalProj}</div><div class="kpi-label">プロジェクト数</div></div>
+    <div class="kpi active" onclick="showTab('chats');setFilter('active',null)" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中</div></div>
+    <div class="kpi pending" onclick="showTab('chats');setFilter('hold',null)" style="cursor:pointer"><div class="kpi-num">${hold}</div><div class="kpi-label">● 保留中</div></div>
+    <div class="kpi done" onclick="showTab('chats');setFilter('done',null)" style="cursor:pointer"><div class="kpi-num">${done}</div><div class="kpi-label">● 完了</div></div>`;
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────
