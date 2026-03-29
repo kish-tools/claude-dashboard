@@ -141,6 +141,23 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 .no-analysis code{font-family:'DM Mono',monospace;background:var(--bg4);padding:2px 6px;border-radius:4px;font-size:12px}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+/* Session modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,15,40,.55);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;width:100%;max-width:720px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(10,15,40,.35);animation:fadeUp .2s ease}
+.modal-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.modal-meta{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;display:flex;gap:12px;flex-wrap:wrap}
+.modal-close{position:absolute;top:16px;right:20px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);line-height:1}
+.modal-body{overflow-y:auto;padding:18px 22px;flex:1;display:flex;flex-direction:column;gap:12px}
+.msg-row{display:flex;flex-direction:column;gap:4px}
+.msg-role{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em}
+.msg-role.user{color:var(--accent)}
+.msg-role.assistant{color:var(--green)}
+.msg-content{font-size:12px;line-height:1.65;color:var(--text);background:var(--bg3);border-radius:10px;padding:10px 14px;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow-y:auto}
+.msg-content.user{border-left:3px solid var(--accent)}
+.msg-content.assistant{border-left:3px solid var(--green)}
+.modal-more{text-align:center;font-size:11px;color:var(--text3);padding:8px;border-top:1px solid var(--border);flex-shrink:0}
 @media(max-width:900px){.kpi-row{grid-template-columns:repeat(3,1fr)};.project-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -202,6 +219,19 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 
 </div><!-- /wrap -->
 
+<!-- Session modal -->
+<div class="modal-overlay" id="session-modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-meta" id="modal-meta"></div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-more" id="modal-more" style="display:none"></div>
+  </div>
+</div>
+
 <script>
 let chats = [];
 let projects = [];
@@ -215,14 +245,59 @@ const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",ho
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toAppUrl(url){ const s = String(url); return s.startsWith('claude://') ? s : s.replace('https://claude.ai/chat/', 'claude://claude.ai/chat/'); }
 
+// ── Session modal ─────────────────────────────────────────────────────────
+function closeModal(){
+  document.getElementById('session-modal').style.display = 'none';
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+async function openSession(id, title){
+  const modal = document.getElementById('session-modal');
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-meta').textContent = '読み込み中…';
+  document.getElementById('modal-body').innerHTML = '';
+  document.getElementById('modal-more').style.display = 'none';
+  modal.style.display = 'flex';
+
+  try {
+    const r = await fetch(`sessions/${id}.json?t=${Date.now()}`);
+    if(!r.ok) throw new Error('session not found');
+    const s = await r.json();
+
+    const date = s.updated_at ? new Date(s.updated_at).toLocaleDateString('ja-JP') : '-';
+    const cwdShort = (s.cwd||'').split('/').slice(-3).join('/');
+    document.getElementById('modal-meta').innerHTML =
+      `<span>📁 ${esc(cwdShort)}</span><span>${esc((s.model||'').replace('claude-',''))}</span><span>${date}</span>`;
+
+    const msgs = s.messages || [];
+    if(!msgs.length){
+      document.getElementById('modal-body').innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px">メッセージが見つかりません</div>';
+      return;
+    }
+    document.getElementById('modal-body').innerHTML = msgs.map(m => `
+      <div class="msg-row">
+        <div class="msg-role ${m.role}">${m.role === 'user' ? '👤 You' : '🤖 Claude'}</div>
+        <div class="msg-content ${m.role}">${esc(m.content)}</div>
+      </div>`).join('');
+
+    const total = s.message_count || msgs.length;
+    if(total > msgs.length){
+      const more = document.getElementById('modal-more');
+      more.style.display = 'block';
+      more.textContent = `全${total}メッセージのうち最初の${msgs.length}件を表示`;
+    }
+  } catch(e) {
+    document.getElementById('modal-body').innerHTML =
+      `<div style="color:var(--text3);text-align:center;padding:32px">セッションデータが見つかりません。<br>sync を再実行してください。</div>`;
+  }
+}
+
 function openBtn(c){
   const src = c.source||'claude-ai';
   if(src === 'claude-ai'){
     return `<a class="open-btn" href="${esc(toAppUrl(c.url))}">開く</a>`;
   }
-  // Code / Cowork: cdwをコピー
-  const cwd = esc(c.cwd||'');
-  return `<button class="open-btn" onclick="navigator.clipboard.writeText('${cwd}').then(()=>{this.textContent='✓ コピー';setTimeout(()=>{this.textContent='📂 パスをコピー'},1500)})" title="${cwd}">📂 パスをコピー</button>`;
+  return `<button class="open-btn" onclick="openSession('${esc(c.id)}','${esc(c.title.replace(/'/g,"\\'"))}')">開く</button>`;
 }
 
 function openBtnSmall(c){
@@ -230,8 +305,7 @@ function openBtnSmall(c){
   if(src === 'claude-ai'){
     return `<a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">開く</a>`;
   }
-  const cwd = esc(c.cwd||'');
-  return `<button class="proj-open-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${cwd}').then(()=>{this.textContent='✓';setTimeout(()=>{this.textContent='📂'},1200)})" title="${cwd}">📂</button>`;
+  return `<button class="proj-open-btn" onclick="event.stopPropagation();openSession('${esc(c.id)}','${esc(c.title.replace(/'/g,"\\'"))}')">開く</button>`;
 }
 
 function fmtDate(iso){

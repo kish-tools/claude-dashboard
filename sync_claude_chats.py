@@ -289,6 +289,98 @@ def sync_claude_code(existing_ids: set) -> list:
     return sessions
 
 
+SESSIONS_DIR = Path.home() / "claude_dashboard/sessions"
+
+def build_session_preview(jsonl_file: Path, max_exchanges: int = 15) -> dict:
+    """JOSONLからチャット会話を抽出してプレビュー用dictを返す。"""
+    messages = []
+    cwd = ""; model = "claude-opus-4-6"
+    created_at = updated_at = None
+
+    for line in jsonl_file.read_text(errors='replace').splitlines():
+        try:
+            obj = json.loads(line)
+        except Exception:
+            continue
+        ts = obj.get("timestamp", "")
+        if ts:
+            if not created_at: created_at = ts
+            updated_at = ts
+
+        if obj.get("isSidechain"):
+            continue
+
+        if obj.get("type") == "user":
+            msg = obj.get("message", {})
+            c = msg.get("content", "")
+            if isinstance(c, list):
+                c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text")
+            c = c.strip()
+            if not cwd: cwd = obj.get("cwd", "")
+            if c and not c.startswith(("<local-command-caveat>", "<command-message>")):
+                messages.append({"role": "user", "content": c[:2000], "ts": ts})
+
+        elif obj.get("type") == "assistant":
+            m2 = obj.get("message", {})
+            if isinstance(m2, dict):
+                if m2.get("model"): model = m2["model"]
+                # テキストのみ抽出（tool_use等は除く）
+                content_parts = m2.get("content", [])
+                if isinstance(content_parts, list):
+                    text = "\n".join(
+                        p.get("text","") for p in content_parts
+                        if isinstance(p, dict) and p.get("type") == "text"
+                    ).strip()
+                elif isinstance(content_parts, str):
+                    text = content_parts.strip()
+                else:
+                    text = ""
+                if text:
+                    messages.append({"role": "assistant", "content": text[:2000], "ts": ts})
+
+        # max_exchanges 組分でカット
+        if len(messages) >= max_exchanges * 2:
+            break
+
+    return {
+        "id": jsonl_file.stem,
+        "cwd": cwd,
+        "model": model,
+        "created_at": created_at or "",
+        "updated_at": updated_at or "",
+        "messages": messages,
+    }
+
+
+def sync_sessions():
+    """Code/Coworkセッションのプレビューを sessions/{uuid}.json に書き出す。"""
+    if not CLAUDE_CODE_DIR.exists():
+        return
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # claude_chats.json から code/cowork のIDを取得
+    if not OUTPUT_JSON.exists():
+        return
+    data = json.loads(OUTPUT_JSON.read_text())
+    code_ids = {c["id"] for c in data.get("chats", []) if c.get("source") in ("claude-code","claude-cowork")}
+
+    for proj_dir in CLAUDE_CODE_DIR.iterdir():
+        if not proj_dir.is_dir(): continue
+        for jsonl_file in proj_dir.glob("*.jsonl"):
+            sid = jsonl_file.stem
+            if not UUID_RE_FULL.match(sid) or sid not in code_ids:
+                continue
+            out_file = SESSIONS_DIR / f"{sid}.json"
+            # すでに存在してファイルが更新されていなければスキップ
+            if out_file.exists() and out_file.stat().st_mtime >= jsonl_file.stat().st_mtime:
+                continue
+            try:
+                preview = build_session_preview(jsonl_file)
+                out_file.write_text(json.dumps(preview, ensure_ascii=False, indent=2))
+            except Exception:
+                pass
+
+
 def sync():
     title_map = extract_titles_from_leveldb(LEVELDB_PATH)
     # react-query-cache に含まれる UUID = 実際のユーザーチャット
@@ -371,6 +463,9 @@ def sync():
     print(f"[OK] {datetime.now().strftime('%H:%M:%S')} "
           f"総数:{len(data['chats'])}件 (Chat:{ai_count} Cowork:{cowork_count} Code:{code_count}) "
           f"新規:{added}件 タイトル取得:{titled}件")
+
+    # Code/Coworkセッションのプレビューを生成
+    sync_sessions()
 
 
 sync()
