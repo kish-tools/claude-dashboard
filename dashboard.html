@@ -195,7 +195,7 @@ const STATUS_LABEL = {active:"● 進行中",hold:"● 保留中",pending:"● �
 const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",hold:"color:#f0a020;border-color:rgba(240,160,32,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toAppUrl(url){ return String(url).replace('https://claude.ai/chat/', 'claude://chat//'); }
+function toAppUrl(url){ return String(url).replace('https://claude.ai/chat/', 'claude://chat/chat/'); }
 
 function fmtDate(iso){
   if(!iso) return "";
@@ -249,7 +249,7 @@ function renderProjects(){
         <div class="proj-chat-dot"></div>
         <span class="proj-chat-link" title="${esc(c.title)}">${esc(c.title)}</span>
         <span class="proj-chat-date">${fmtDate(c.updated_at||c.updatedAt)}</span>
-        <a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">↗</a>
+        <a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">開く</a>
       </div>`).join('');
 
     return `
@@ -315,7 +315,7 @@ function renderChats(){
       </div>
       <div class="chat-right">
         <span class="status-badge" style="${sc}">${sl}</span>
-        <a class="open-btn" href="${esc(toAppUrl(c.url))}">↗ 開く</a>
+        <a class="open-btn" href="${esc(toAppUrl(c.url))}">開く</a>
       </div>
     </div>`;
   }).join('');
