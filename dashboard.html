@@ -94,9 +94,8 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
 .proj-open-btn:hover{color:#fff;background:var(--accent);border-color:var(--accent)}
 .proj-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
 .expand-hint{font-size:10px;color:var(--text3)}
-.done-btn{font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid var(--text3);background:none;color:var(--text3);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .15s}
-.done-btn:hover{background:var(--green);border-color:var(--green);color:#fff}
-.done-label{font-size:11px;color:var(--text3)}
+.status-select{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-family:'Noto Sans JP',sans-serif;outline:none}
+.status-select:hover{border-color:var(--border2)}
 
 /* Chat list (all chats tab) */
 .filter-bar{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
@@ -275,7 +274,11 @@ function renderProjects(){
       <div class="proj-chats">${chatItems}</div>
       <div class="proj-footer">
         ${projChats.length ? '<span class="expand-hint">クリックでチャット一覧を展開</span>' : '<span></span>'}
-        ${p.status!=='done' ? `<button class="done-btn" onclick="event.stopPropagation();markDone('${esc(p.id)}',this)">✓ 完了にする</button>` : '<span class="done-label">✓ 完了</span>'}
+        <select class="status-select" onclick="event.stopPropagation()" onchange="changeStatus('${esc(p.id)}',this.value,this)">
+          <option value="active" ${p.status==='active'?'selected':''}>● 進行中</option>
+          <option value="hold"   ${p.status==='hold'  ?'selected':''}>● 保留中</option>
+          <option value="done"   ${p.status==='done'  ?'selected':''}>● 完了</option>
+        </select>
       </div>
     </div>`;
   }).join('');
@@ -285,12 +288,11 @@ function toggleExpand(card){
   card.classList.toggle('expanded');
 }
 
-function markDone(projId, btn){
-  if(!confirm('このプロジェクトを完了にしますか？')) return;
+function changeStatus(projId, newStatus, sel){
   const proj = projects.find(p=>p.id===projId);
   if(!proj) return;
-  proj.status = 'done';
-  proj.progress = 100;
+  proj.status = newStatus;
+  if(newStatus==='done') proj.progress = 100;
   renderKPI();
   renderProjects();
 }
