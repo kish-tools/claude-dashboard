@@ -262,9 +262,21 @@ def sync_claude_code(existing_ids: set) -> list:
             if not title:
                 continue
 
-            # 分析スクリプト自身が呼んだ内部セッションは除外
-            internal_keywords = ("あなたはユーザーのAI/Claude活用状況を分析", "以下のnext_actionリストを評価", "Claude Dashboard Autoresearch")
-            if any(first_raw.startswith(kw) for kw in internal_keywords):
+            # 分析・autoresearchスクリプトが呼んだ内部セッションは除外
+            internal_keywords = (
+                "あなたはユーザーのAI/Claude活用状況を分析",
+                "以下のnext_actionリストを評価",
+                "Claude Dashboard Autoresearch",
+                "以下のファイルを読んで experiment.py",
+                "experiment.py の PROMPT",
+                "ANALYZE_PROMPT",
+                "以下のnext_action",
+                "program.md に記載",
+            )
+            if any(kw in first_raw for kw in internal_keywords):
+                continue
+            # eval.pyやanalyze_chats.pyが使うプロンプトパターン（長い英数字UUIDリスト等）も除外
+            if first_raw.count("xxxx") > 2 or "chat_ids" in first_raw:
                 continue
 
             # cwd に "claude cowork" が含まれる → cowork セッション
