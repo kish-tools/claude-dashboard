@@ -201,7 +201,7 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
   <div class="src-bar">
     <button class="src-btn active" onclick="setSrc('all',this)">🔀 すべて</button>
     <button class="src-btn" onclick="setSrc('claude-ai',this)">💬 Chat</button>
-    <button class="src-btn" onclick="setSrc('claude-cowork',this)">🤝 Cowork</button>
+    
     <button class="src-btn" onclick="setSrc('claude-code',this)">⌨️ Code</button>
   </div>
   <div class="filter-bar">
@@ -331,12 +331,10 @@ function renderKPI(){
   const hold    = projects.filter(p=>p.status==='hold').length;
   const done    = projects.filter(p=>p.status==='done').length;
   const aiCount     = chats.filter(c=>c.source==='claude-ai'||!c.source).length;
-  const coworkCount = chats.filter(c=>c.source==='claude-cowork').length;
   const codeCount   = chats.filter(c=>c.source==='claude-code').length;
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi total" onclick="showTab('chats');setFilter('all',document.querySelector('.filter-btn'))" style="cursor:pointer"><div class="kpi-num">${totalChats}</div><div class="kpi-label">総セッション数</div></div>
     <div class="kpi total" onclick="showTab('chats');setSrc('claude-ai',null)" style="cursor:pointer"><div class="kpi-num">${aiCount}</div><div class="kpi-label">💬 Chat</div></div>
-    <div class="kpi pending" onclick="showTab('chats');setSrc('claude-cowork',null)" style="cursor:pointer"><div class="kpi-num">${coworkCount}</div><div class="kpi-label">🤝 Cowork</div></div>
     <div class="kpi todo" onclick="showTab('chats');setSrc('claude-code',null)" style="cursor:pointer"><div class="kpi-num">${codeCount}</div><div class="kpi-label">⌨️ Code</div></div>
     <div class="kpi active" onclick="showTab('chats');setFilter('active',null)" style="cursor:pointer"><div class="kpi-num">${active}</div><div class="kpi-label">● 進行中PJ</div></div>`;
 }
@@ -361,7 +359,6 @@ function renderProjects(){
     const chatItems = projChats.slice(0,8).map(c=>{
       const s = c.source||'claude-ai';
       const pill = s==='claude-code'   ? '<span class="src-badge code" style="font-size:8px">Code</span>'
-                 : s==='claude-cowork' ? '<span class="src-badge cowork" style="font-size:8px">Cowork</span>'
                  :                       '<span class="src-badge ai" style="font-size:8px">Chat</span>';
       return `
       <div class="proj-chat-item">
@@ -375,7 +372,6 @@ function renderProjects(){
     const srcCounts = projChats.reduce((a,c)=>{const s=c.source||'claude-ai';a[s]=(a[s]||0)+1;return a},{});
     const srcSummary = [
       srcCounts['claude-ai']     ? `<span class="src-badge ai" style="font-size:9px">${srcCounts['claude-ai']} Chat</span>`   : '',
-      srcCounts['claude-cowork'] ? `<span class="src-badge cowork" style="font-size:9px">${srcCounts['claude-cowork']} Cowork</span>` : '',
       srcCounts['claude-code']   ? `<span class="src-badge code" style="font-size:9px">${srcCounts['claude-code']} Code</span>` : '',
     ].filter(Boolean).join('');
 
@@ -456,7 +452,6 @@ function renderChats(){
     const dateStr = fmtDate(c.updated_at || c.updatedAt);
     const src = c.source || 'claude-ai';
     const srcBadge = src === 'claude-code'   ? '<span class="src-badge code">⌨️ Code</span>'
-                   : src === 'claude-cowork' ? '<span class="src-badge cowork">🤝 Cowork</span>'
                    :                           '<span class="src-badge ai">💬 Chat</span>';
     const cwdShort = src === 'claude-code' && c.cwd ? c.cwd.split('/').slice(-2).join('/') : '';
     return `

@@ -123,7 +123,7 @@ def main():
         sys.exit(1)
 
     # 最近のチャットのみ分析（updated_at降順 上位100件）
-    recent = sorted(chats, key=lambda c: c.get("updated_at",""), reverse=True)[:80]
+    recent = sorted(chats, key=lambda c: c.get("updated_at",""), reverse=True)[:60]
     print(f"[分析中] {len(chats)}件中 直近{len(recent)}件を分析しています...")
 
     try:

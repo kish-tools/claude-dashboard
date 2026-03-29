@@ -275,12 +275,19 @@ def sync_claude_code(existing_ids: set) -> list:
             )
             if any(kw in first_raw for kw in internal_keywords):
                 continue
-            # eval.pyやanalyze_chats.pyが使うプロンプトパターン（長い英数字UUIDリスト等）も除外
+            # eval.pyやanalyze_chats.pyが使うプロンプトパターンも除外
             if first_raw.count("xxxx") > 2 or "chat_ids" in first_raw:
                 continue
+            # プロンプト文がタイトルになっているセッションは除外（AIへの命令文で始まるもの）
+            prompt_starters = ("あなたは", "以下は", "以下の", "次の", "下記の", "Please ", "You are ")
+            if any(first_raw.startswith(s) for s in prompt_starters):
+                continue
+            # メッセージ数が少なすぎる（API的な単発呼び出し）は除外
+            if user_count < 2:
+                continue
 
-            # cwd に "claude cowork" が含まれる → cowork セッション
-            source = "claude-cowork" if "claude cowork" in cwd else "claude-code"
+            # Claude Code セッションはすべて claude-code（cwdで作業場所を表示）
+            source = "claude-code"
 
             sessions.append({
                 "id":            sid,
@@ -423,12 +430,19 @@ def sync():
             chat["created_at"] = meta["created_at"]
             chat["updated_at"] = meta["updated_at"]
 
-    # 新規チャットを追加（claude.ai / claude-cowork）
+    # プロンプト文がタイトルになっているチャットは除外
+    prompt_starters = ("あなたは", "以下は", "以下の", "次の", "下記の", "Please ", "You are ", "#", "```")
+    def is_prompt_title(title: str) -> bool:
+        return any(title.startswith(s) for s in prompt_starters)
+
+    # 新規チャットを追加（claude.ai）
     for uid in uuid_set:
         if uid not in existing:
             meta = title_map[uid]
+            if is_prompt_title(meta.get("title", "")):
+                continue
             src = meta.get("source", "claude-ai")
-            url = f"https://claude.ai/cowork/{uid}" if src == "claude-cowork" else f"https://claude.ai/chat/{uid}"
+            url = f"https://claude.ai/chat/{uid}"
             data["chats"].append({
                 "id":         uid,
                 "url":        url,
@@ -448,13 +462,13 @@ def sync():
     for chat in data["chats"]:
         cwd = chat.get("cwd", "")
         if cwd:
-            # Claude Code セッション: cwd で cowork を判定
-            chat["source"] = "claude-cowork" if "claude cowork" in cwd else "claude-code"
+            # cwd があるものはすべて Claude Code セッション
+            chat["source"] = "claude-code"
         elif "source" not in chat:
-            if "/cowork/" in chat.get("url", ""):
-                chat["source"] = "claude-cowork"
-            else:
-                chat["source"] = "claude-ai"
+            chat["source"] = "claude-ai"
+        # claude-cowork を claude-code に統一
+        elif chat.get("source") == "claude-cowork":
+            chat["source"] = "claude-code"
 
     # Claude Code セッションを追加
     existing_ids = {c["id"] for c in data["chats"]}
