@@ -171,7 +171,7 @@ header{padding:28px 0 24px;display:flex;align-items:flex-end;justify-content:spa
   <div class="filter-bar">
     <button class="filter-btn active" onclick="setFilter('all',this)">すべて</button>
     <button class="filter-btn" onclick="setFilter('active',this)">● 進行中</button>
-    <button class="filter-btn" onclick="setFilter('pending',this)">● 保留中</button>
+    <button class="filter-btn" onclick="setFilter('hold',this)">● 保留中</button>
     <button class="filter-btn" onclick="setFilter('todo',this)">● 未確認</button>
     <button class="filter-btn" onclick="setFilter('done',this)">● 完了</button>
     <div class="search-wrap">
@@ -189,8 +189,8 @@ let projects = [];
 let currentFilter = "all";
 
 // ── helpers ──────────────────────────────────────────────────────────────
-const STATUS_LABEL = {active:"● 進行中",pending:"● 保留中",todo:"未確認/TODO",done:"● 完了"};
-const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
+const STATUS_LABEL = {active:"● 進行中",hold:"● 保留中",pending:"● 保留中",todo:"未確認/TODO",done:"● 完了"};
+const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",hold:"color:#f0a020;border-color:rgba(240,160,32,.3)",pending:"color:#f0a020;border-color:rgba(240,160,32,.3)",todo:"color:#3b6bfa;border-color:rgba(59,107,250,.3)",done:"color:#9aaac4;border-color:rgba(154,170,196,.3)"};
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -335,6 +335,10 @@ async function loadData(){
     if(r2 && r2.ok){
       const p = await r2.json();
       projects = p.projects || [];
+      // チャットのstatusをプロジェクトのstatusから引き継ぐ
+      const projMap = {};
+      projects.forEach(p => p.chat_ids.forEach(id => projMap[id] = p.status));
+      chats.forEach(c => { if(projMap[c.id]) c.status = projMap[c.id]; });
       const ta = p.last_analyzed ? new Date(p.last_analyzed).toLocaleDateString('ja-JP') : "-";
       document.getElementById("sync-info").textContent += "  |  分析: " + ta;
     }
