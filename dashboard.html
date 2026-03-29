@@ -215,6 +215,25 @@ const STATUS_COLOR = {active:"color:#0fba7a;border-color:rgba(15,186,122,.3)",ho
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toAppUrl(url){ const s = String(url); return s.startsWith('claude://') ? s : s.replace('https://claude.ai/chat/', 'claude://claude.ai/chat/'); }
 
+function openBtn(c){
+  const src = c.source||'claude-ai';
+  if(src === 'claude-ai'){
+    return `<a class="open-btn" href="${esc(toAppUrl(c.url))}">開く</a>`;
+  }
+  // Code / Cowork: cdwをコピー
+  const cwd = esc(c.cwd||'');
+  return `<button class="open-btn" onclick="navigator.clipboard.writeText('${cwd}').then(()=>{this.textContent='✓ コピー';setTimeout(()=>{this.textContent='📂 パスをコピー'},1500)})" title="${cwd}">📂 パスをコピー</button>`;
+}
+
+function openBtnSmall(c){
+  const src = c.source||'claude-ai';
+  if(src === 'claude-ai'){
+    return `<a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">開く</a>`;
+  }
+  const cwd = esc(c.cwd||'');
+  return `<button class="proj-open-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${cwd}').then(()=>{this.textContent='✓';setTimeout(()=>{this.textContent='📂'},1200)})" title="${cwd}">📂</button>`;
+}
+
 function fmtDate(iso){
   if(!iso) return "";
   const d = new Date(iso);
@@ -275,7 +294,7 @@ function renderProjects(){
         ${pill}
         <span class="proj-chat-link" title="${esc(c.title)}">${esc(c.title)}</span>
         <span class="proj-chat-date">${fmtDate(c.updated_at||c.updatedAt)}</span>
-        <a class="proj-open-btn" href="${esc(toAppUrl(c.url))}" onclick="event.stopPropagation()">開く</a>
+        ${openBtnSmall(c)}
       </div>`;
     }).join('');
     // ソース別カウント
@@ -380,7 +399,7 @@ function renderChats(){
       </div>
       <div class="chat-right">
         <span class="status-badge" style="${sc}">${sl}</span>
-        <a class="open-btn" href="${esc(toAppUrl(c.url))}">開く</a>
+        ${openBtn(c)}
       </div>
     </div>`;
   }).join('');
