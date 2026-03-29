@@ -262,6 +262,14 @@ def sync_claude_code(existing_ids: set) -> list:
             if not title:
                 continue
 
+            # 分析スクリプト自身が呼んだ内部セッションは除外
+            internal_keywords = ("あなたはユーザーのAI/Claude活用状況を分析", "以下のnext_actionリストを評価", "Claude Dashboard Autoresearch")
+            if any(first_raw.startswith(kw) for kw in internal_keywords):
+                continue
+
+            # cwd に "claude cowork" が含まれる → cowork セッション
+            source = "claude-cowork" if "claude cowork" in cwd else "claude-code"
+
             sessions.append({
                 "id":            sid,
                 "url":           f"claude://claude.ai/chat/{sid}",
@@ -270,7 +278,7 @@ def sync_claude_code(existing_ids: set) -> list:
                 "model":         model,
                 "created_at":    created_at or datetime.now().isoformat(),
                 "updated_at":    updated_at or datetime.now().isoformat(),
-                "source":        "claude-code",
+                "source":        source,
                 "cwd":           cwd,
                 "message_count": user_count,
                 "status":        "todo",
@@ -332,13 +340,15 @@ def sync():
             })
             added += 1
 
-    # 既存チャットに source が無ければ付与、cowork URL なら上書き
+    # source を最新状態で付与・修正
     for chat in data["chats"]:
-        if "source" not in chat:
+        cwd = chat.get("cwd", "")
+        if cwd:
+            # Claude Code セッション: cwd で cowork を判定
+            chat["source"] = "claude-cowork" if "claude cowork" in cwd else "claude-code"
+        elif "source" not in chat:
             if "/cowork/" in chat.get("url", ""):
                 chat["source"] = "claude-cowork"
-            elif chat.get("cwd"):
-                chat["source"] = "claude-code"
             else:
                 chat["source"] = "claude-ai"
 
